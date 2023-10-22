@@ -1,9 +1,9 @@
 import config from "../config";
-import { IPlayerAroundLeaderboard } from "../interfaces/IPlayerAroundLeaderboard";
+import { AbstractCache } from "./AbstractCache";
 import logger from "./Logger";
 import { Redis } from "ioredis"
 
-export class Cache {
+export class Cache extends AbstractCache{
 
     redis: Redis;
 
@@ -22,36 +22,31 @@ export class Cache {
         })
     }
 
-    updateScore(gameName: string, userId: string, currentScore: number): Promise<void> {
-        return new Promise(async (resolve, reject) => {
+    zAdd(gameName: string, score:number, member: string,): Promise<void> {
+        return new Promise(async(resolve, reject) => {
             try {
-                logger.silly("score updating")
-                let score: number = Number(this.redis.zscore(gameName, userId));
-                if (currentScore > score || ! score) {
-                    await this.redis.zadd(gameName, currentScore, userId);
-                }
+                await this.redis.zadd(gameName, score, member);
                 return resolve();
-            } catch (err) {
+            } catch(err) {
                 return reject(err);
             }
         })
     }
 
-    getScore(gameName: string, userId: string): Promise<number> {
-        return new Promise(async (resolve, reject) => {
+    zScore(gameName: string, member: string): Promise<number>{
+        return new Promise(async(resolve, reject) => {
             try {
-                let score: number = Number(this.redis.zscore(gameName, userId));
+                let score: number = Number(await this.redis.zscore(gameName, member));
                 return resolve(score);
-            } catch (err) {
+            } catch(err){
                 return reject(err);
             }
         })
     }
 
-    getRank(gameName: string, userId: string): Promise<number> {
+    zRank(gameName: string, userId: string): Promise<number> {
         return new Promise(async (resolve, reject) => {
             try {
-                logger.silly("getting rank")
                 let rank: number = Number(await this.redis.zrank(gameName, userId)) + 1;
                 return resolve(rank);
             } catch (err) {
@@ -60,68 +55,16 @@ export class Cache {
         })
     }
 
-    getPlayerAroundLeaderboard(gameName: string, userId: string): Promise<IPlayerAroundLeaderboard[]>{
+    zRangeByScore(key: string, min:number, max: number): Promise<string[]> {
         return new Promise(async(resolve, reject) => {
             try {
-                let score: number = Number(await this.redis.zscore(gameName, userId));
-                let min : number = score -50;
-                let max: number = score + 50;
-
-                let userdata = await this.redis.zrangebyscore(gameName,min,max,'WITHSCORES');
-                let usersId: string [] =[];
-                let userScores: {[id:string]: number} = {};
-                
-                for(let index = 0;index< userdata.length; index++){
-                    if(index %2 === 0) {
-                        usersId.push(userdata[index]);
-                        userScores[userdata[index]] = Number(userdata[index+1]);
-                    }
-                }
-                if(userdata.length > 10) {
-                    usersId = await this.removeExcessUserId(usersId,userId);
-                }
-                
-                let playerAroundLeaderboard:IPlayerAroundLeaderboard[] = [];
-                for(let id of usersId) {
-                    let rank: number = Number(await this.redis.zrank(gameName,id)) + 1;
-                    playerAroundLeaderboard.push({
-                        userId: id,
-                        rank,
-                        score: userScores[id]
-                    })
-                }
-                return resolve(playerAroundLeaderboard);
-            } catch(err){
-                return reject(err);
-            }
-        })
-    }
-
-    removeExcessUserId(usersId: string[], userId: string):Promise<string[]>{
-        return new Promise(async(resolve, reject) => {
-            try {
-                let start: number = 0;
-                let end: number  = 0;
-                
-                let size: number = usersId.length;
-                let userIdIndex = usersId.indexOf(userId);
-
-                let leaderboardUsersId: string[] = [];
-                
-                start = userIdIndex - 4;
-                if(start < 0) start = 0;
-                
-                end = userIdIndex + 6;
-                if(end > size) end =size;
-
-                if(userIdIndex - start < 4) end = end + (4 - (userIdIndex - start));
-
-                if(end - userIdIndex < 6) start = start + (end - userIdIndex - 6);
-
-                for(let index = start; index< end; index++) {
-                    leaderboardUsersId.push(usersId[index]);
-                }
-                return resolve(leaderboardUsersId);
+                let scoreByRange: string[] = await this.redis.zrangebyscore(
+                    key,
+                    min,
+                    max,
+                    'WITHSCORES'
+                );
+                return resolve(scoreByRange);
             } catch(err){
                 return reject(err);
             }
