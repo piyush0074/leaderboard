@@ -1,32 +1,36 @@
 import { Router } from 'express';
-import { Leaderboard } from '../../controller/Leaderboard';
 import middlewares from '../middlewares';
+import { UpdateScore } from '../../controller/UpdateScore';
+import { PlayerRank } from '../../controller/PlayerRank';
+import { PlayerAroundLeaderboard } from '../../controller/PlayerAroundLeaderboard';
 
 const route = Router();
 
 export default (app: Router) => {
     app.use('/leaderboard', route);
 
-    let leaderboardController = new Leaderboard();
+    let updateScoreController = new UpdateScore();
+    let playerRankController = new PlayerRank();
+    let playerAroundLeaderboardController = new PlayerAroundLeaderboard();
 
     route.post('/updatescore',
         middlewares.LeaderboardReqValidate.updateScoreRequest,
         (req, res) => {
-            leaderboardController.updateScore(req, res);
+            updateScoreController.updateScore(req, res);
         }
     );
 
-    route.get('/getplayerrank',
+    route.get('/playerrank',
         middlewares.LeaderboardReqValidate.playerRankRequest,
         (req, res) => {
-            leaderboardController.getPlayerRank(req, res);
+            playerRankController.playerRank(req, res);
         }
     );
 
-    route.get('/getplayeraroundleaderboard',
+    route.get('/playeraroundleaderboard',
         middlewares.LeaderboardReqValidate.playerAroundLeaderboardRequest,
         (req, res) => {
-            leaderboardController.getPlayerAroundLeaderboard(req, res);
+            playerAroundLeaderboardController.playerAroundLeaderboard(req, res);
         }
     )
 }
